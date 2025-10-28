@@ -1,44 +1,66 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Faaliyet Detayı</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faaliyet Detayı</title>
+<link rel="stylesheet" href="style.css">
+<!-- jsPDF (PDF export) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <header>
-    <button onclick="history.back()" class="btn-secondary">← Geri</button>
-    <h1>Faaliyet Detayı</h1>
-  </header>
+<header>
+  <button onclick="history.back()" class="btn-secondary">← Geri</button>
+  <h1>Faaliyet Detayı</h1>
+  <button id="btnPdf" class="btn">PDF İndir</button>
+</header>
 
-  <main id="detay" class="detay"></main>
+<main id="detay" class="detay"></main>
 
-  <script>
-    function cleanNumber(v) {
-      if (!v) return 0;
-      return parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0;
+<script>
+  function cleanNumber(v){ if(!v) return 0;
+    let s=String(v).replace(/[^\d,.\-]/g,"");
+    if(s.includes(",") && (s.split(",")[1]||"").length<=3){ s=s.replace(/\./g,"").replace(",","."); }
+    else{ s=s.replace(/\./g,""); }
+    const n=parseFloat(s); return isNaN(n)?0:n;
+  }
+  const fmt = v => {
+    const n=cleanNumber(v);
+    return n? n.toLocaleString("tr-TR")+" TL" : (v||"-");
+  };
+
+  const row = JSON.parse(localStorage.getItem("dsi_selected_row")||"{}");
+  const div = document.getElementById("detay");
+  if (!Object.keys(row).length) {
+    div.innerHTML = "<p>Veri bulunamadı.</p>";
+  } else {
+    let html = `<table>`;
+    for (const [k,v] of Object.entries(row)) {
+      const isMoney = /maliyet|harcama|ödenek|bedel|bakiye|tutar|keşif/i.test(k);
+      html += `<tr><th>${k}</th><td>${isMoney?fmt(v): (v||"-")}</td></tr>`;
     }
-    function formatNumber(v) {
-      const n = cleanNumber(v);
-      return n ? n.toLocaleString("tr-TR") + " TL" : "-";
-    }
+    html += `</table>`;
+    div.innerHTML = html;
+  }
 
-    const row = JSON.parse(localStorage.getItem("dsi_selected_row") || "{}");
-    const detayDiv = document.getElementById("detay");
+  document.getElementById("btnPdf").onclick = async ()=>{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:"pt", format:"a4" });
+    let y = 40;
+    doc.setFont("helvetica","bold"); doc.setFontSize(14);
+    doc.text("DSİ 2025 – Faaliyet Detayı", 40, y); y+=20;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
 
-    if (Object.keys(row).length === 0) {
-      detayDiv.innerHTML = "<p>Veri bulunamadı.</p>";
-    } else {
-      let html = "<table>";
-      for (const [k, v] of Object.entries(row)) {
-        const isNumeric = /maliyet|harcama|ödenek|bedel|tutar|keşif|bakiye/i.test(k);
-        const value = isNumeric ? formatNumber(v) : v || "-";
-        html += `<tr><th>${k}</th><td>${value}</td></tr>`;
-      }
-      html += "</table>";
-      detayDiv.innerHTML = html;
+    for (const [k,v] of Object.entries(row)) {
+      const isMoney = /maliyet|harcama|ödenek|bedel|bakiye|tutar|keşif/i.test(k);
+      const val = isMoney ? (cleanNumber(v).toLocaleString("tr-TR")+" TL") : (v||"-");
+      const line = `${k}: ${val}`;
+      const split = doc.splitTextToSize(line, 515);
+      if (y + split.length*14 > 800) { doc.addPage(); y=40; }
+      doc.text(split, 40, y); y += split.length*14 + 6;
     }
-  </script>
+    doc.save("Faaliyet_Detayi.pdf");
+  };
+</script>
 </body>
 </html>

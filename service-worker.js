@@ -1,6 +1,6 @@
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open("dsiapp-2025").then(cache => cache.addAll(["./", "index.html", "style.css"])));
+  e.waitUntil(caches.open("dsiapp-2025-v1").then(c => c.addAll(["./","index.html","style.css","detay.html"])));
 });
 self.addEventListener("fetch", e => {
-  e.respondWith(caches.match(e.request).then(resp => resp || fetch(e.request)));
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
 });
