@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faaliyet Detayı</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <button onclick="history.back()" class="btn-secondary">← Geri</button>
+    <h1>Faaliyet Detayı</h1>
+  </header>
+
+  <main id="detay" class="detay"></main>
+
+  <script>
+    function cleanNumber(v) {
+      if (!v) return 0;
+      return parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0;
+    }
+    function formatNumber(v) {
+      const n = cleanNumber(v);
+      return n ? n.toLocaleString("tr-TR") + " TL" : "-";
+    }
+
+    const row = JSON.parse(localStorage.getItem("dsi_selected_row") || "{}");
+    const detayDiv = document.getElementById("detay");
+
+    if (Object.keys(row).length === 0) {
+      detayDiv.innerHTML = "<p>Veri bulunamadı.</p>";
+    } else {
+      let html = "<table>";
+      for (const [k, v] of Object.entries(row)) {
+        const isNumeric = /maliyet|harcama|ödenek|bedel|tutar|keşif|bakiye/i.test(k);
+        const value = isNumeric ? formatNumber(v) : v || "-";
+        html += `<tr><th>${k}</th><td>${value}</td></tr>`;
+      }
+      html += "</table>";
+      detayDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>

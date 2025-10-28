@@ -1,0 +1,28 @@
+body { font-family: "Segoe UI", sans-serif; margin: 0; background: #f7f9f8; color: #222; }
+header { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:#0a6b3c; color:#fff; }
+h1 { font-size:18px; margin:0; }
+.btn { background:#1ca855; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; }
+.btn:hover { background:#158040; }
+.btn-secondary { background:#eee; color:#333; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+
+.kpi-panel { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:8px; padding:10px; background:#e9f5ef; }
+.kpi { background:#fff; border-radius:8px; padding:10px; text-align:center; box-shadow:0 0 4px rgba(0,0,0,0.1); }
+.kpi .t { font-size:13px; color:#444; }
+.kpi .v { font-weight:bold; font-size:16px; color:#0a6b3c; margin-top:4px; }
+
+.searchbar { padding:10px; }
+.searchbar input { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; }
+
+.grid { display:grid; gap:8px; padding:10px; }
+.card { background:#fff; padding:10px; border-radius:8px; box-shadow:0 0 3px rgba(0,0,0,0.1); }
+.card h3 { margin:0 0 4px; font-size:15px; color:#0a6b3c; }
+.pagination { text-align:center; margin:10px; }
+.pagination button { margin:2px; padding:5px 8px; border:none; background:#e0e0e0; border-radius:4px; cursor:pointer; }
+.pagination button.active { background:#0a6b3c; color:#fff; }
+
+.filter-panel { position:fixed; top:0; right:0; width:300px; height:100%; background:#fff; box-shadow:-2px 0 6px rgba(0,0,0,0.2); padding:16px; overflow:auto; transition:transform 0.3s ease; }
+.filter-panel.hidden { transform:translateX(100%); }
+.filter-item { margin-bottom:10px; }
+.filter-item label { display:block; margin-bottom:4px; font-weight:bold; font-size:13px; }
+.filter-item select { width:100%; padding:6px; border:1px solid #ccc; border-radius:4px; }
+.filter-actions { display:flex; justify-content:space-between; margin-top:16px; }

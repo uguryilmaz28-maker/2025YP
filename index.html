@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DSİ 2025 Yatırım Programı</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+</script>
+</head>
+<body>
+<header>
+  <h1>💧 DSİ 2025 Yatırım Programı</h1>
+  <button id="filterBtn" class="btn">Filtrele ⚙️</button>
+</header>
+
+<section id="kpiPanel" class="kpi-panel">
+  <div class="kpi"><div class="t">Toplam Maliyet</div><div class="v" id="k_maliyet">–</div></div>
+  <div class="kpi"><div class="t">Toplam Harcama</div><div class="v" id="k_harcama">–</div></div>
+  <div class="kpi"><div class="t">Revize Ödenek</div><div class="v" id="k_revize">–</div></div>
+  <div class="kpi"><div class="t">2025 Yılı Harcaması</div><div class="v" id="k_yiliharcama">–</div></div>
+  <div class="kpi"><div class="t">Bakiye</div><div class="v" id="k_bakiye">–</div></div>
+  <div class="kpi"><div class="t">2025 Performans Hedefi</div><div class="v" id="k_hedef">–</div></div>
+  <div class="kpi"><div class="t">Sulama (ha) Toplamı</div><div class="v" id="k_sulama">–</div></div>
+</section>
+
+<div class="searchbar">
+  <input id="q" placeholder="Ara... (faaliyet, il, daire vb.)"/>
+</div>
+
+<main id="list" class="grid"></main>
+<div id="pagination" class="pagination"></div>
+
+<div id="filterPanel" class="filter-panel hidden">
+  <h2>Filtrele</h2>
+  <div id="filterContainer"></div>
+  <div class="filter-actions">
+    <button id="clearFilters" class="btn-secondary">Tümünü Temizle</button>
+    <button id="applyFilters" class="btn">Tamam</button>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = "18dE07YFXAoUcLqAZ4lqCPD0XT1s_ZfwO";
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+
+const FILTER_KEYS = ["PERFORMANS_DURUMU","DAIRE","HARCAMA_YUZDESI","YAPIM_SEKLI","BOLGE_NO","BOLGESEL_DURUM","CSBB_UST","HAVZA","IL"];
+const KPI_KEYS = {
+  MALIYET:"TOPLAM_MALIYET",
+  HARCAMA:"TOPLAM_HARCAMA",
+  REVIZE:"REVIZE_ODENEK",
+  YIL_HARCAMA:"HARCAMA_2025",
+  HEDEF:"HEDEF_2025",
+  SULAMA:"SULAMA_HA",
+  BAKIYE:"BAKIYE"
+};
+
+function normalizeHeader(h){
+  if(!h) return "";
+  let s=String(h).replace(/\r|\n/g," ").replace(/\s+/g," ").trim().toUpperCase();
+  if(/BAKIYE|BAKİYE/.test(s)) return "BAKIYE";
+  if(/FAAL.*ADI/.test(s)) return "TITLE";
+  if(/IL( |$)|IL ADI|YERI/.test(s)) return "IL";
+  if(/HAVZA/.test(s)) return "HAVZA";
+  if(/PERFORMANS DURUMU/.test(s)) return "PERFORMANS_DURUMU";
+  if(/IS(TEN)? SORUMLU DAIRE/.test(s)) return "DAIRE";
+  if(/YAPIM SEKLI/.test(s)) return "YAPIM_SEKLI";
+  if(/BOLGE NO|BIRIM KODU/.test(s)) return "BOLGE_NO";
+  if(/BOLGESEL DURUM/.test(s)) return "BOLGESEL_DURUM";
+  if(/CSBB SEVIYE UST/.test(s)) return "CSBB_UST";
+  if(/HARCAMA YUZDESI/.test(s)) return "HARCAMA_YUZDESI";
+  if(/TOPLAM MALIYET/.test(s)) return "TOPLAM_MALIYET";
+  if(/TOPLAM HARCAMA/.test(s)) return "TOPLAM_HARCAMA";
+  if(/REVIZE ODENEK/.test(s)) return "REVIZE_ODENEK";
+  if(/2025 YILI HARCAMASI/.test(s)) return "HARCAMA_2025";
+  if(/2025 PERFORMANS HEDEFI/.test(s)) return "HEDEF_2025";
+  if(/SULAMA.*HA/.test(s)) return "SULAMA_HA";
+  return s.replace(/[^A-Z0-9]+/g,"_");
+}
+
+function canonizeRow(row){ const out={}; for(const k in row) out[normalizeHeader(k)]=row[k]; return out; }
+
+function cleanNumber(v){ if(v===undefined||v===null) return 0;
+  let s=String(v).trim().replace(/[^\d,.\-]/g,"");
+  if(s.includes(",")&&(s.split(",")[1]||"").length<=3){ s=s.replace(/\./g,"").replace(",","."); }
+  else{ s=s.replace(/\./g,""); }
+  const n=parseFloat(s); return isNaN(n)?0:n;
+}
+const fmt=n=>cleanNumber(n).toLocaleString("tr-TR");
+
+let ALL=[],VIEW=[],PAGE=1,PAGE_SIZE=100;
+
+function renderKPIs(rows){
+  const sum = key => rows.reduce((a,r)=>a+cleanNumber(r[key]),0);
+  const maliyet=sum(KPI_KEYS.MALIYET);
+  const harcama=sum(KPI_KEYS.HARCAMA);
+  const revize=sum(KPI_KEYS.REVIZE);
+  const yilHar=sum(KPI_KEYS.YIL_HARCAMA);
+  const hedef=sum(KPI_KEYS.HEDEF);
+  const sulama=sum(KPI_KEYS.SULAMA);
+
+  const hasBakiyeCol = rows.some(r => r.BAKIYE && String(r.BAKIYE).trim() !== "");
+  const bakiye = hasBakiyeCol
+    ? sum(KPI_KEYS.BAKIYE)
+    : rows.reduce((acc,r)=>acc+(cleanNumber(r.REVIZE_ODENEK)-cleanNumber(r.TOPLAM_HARCAMA)),0);
+
+  document.getElementById("k_maliyet").textContent=fmt(maliyet);
+  document.getElementById("k_harcama").textContent=fmt(harcama);
+  document.getElementById("k_revize").textContent=fmt(revize);
+  document.getElementById("k_yiliharcama").textContent=fmt(yilHar);
+  document.getElementById("k_hedef").textContent=fmt(hedef);
+  document.getElementById("k_sulama").textContent=fmt(sulama);
+  document.getElementById("k_bakiye").textContent=fmt(bakiye);
+}
+
+function renderList(){
+  const list=document.getElementById("list");
+  list.innerHTML="";
+  const start=(PAGE-1)*PAGE_SIZE;
+  const pageRows=VIEW.slice(start,start+PAGE_SIZE);
+  pageRows.forEach(r=>{
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`<h3>${r.TITLE||"-"}</h3>
+    <p><b>İl:</b> ${r.IL||"-"} • <b>Bölge:</b> ${r.BOLGE_NO||"-"}</p>
+    <p><b>Revize:</b> ${fmt(r.REVIZE_ODENEK)} • <b>Harcama:</b> ${fmt(r.TOPLAM_HARCAMA)}</p>`;
+    list.appendChild(card);
+  });
+}
+
+function buildFiltersUI(){
+  const box=document.getElementById("filterContainer");
+  box.innerHTML="";
+  FILTER_KEYS.forEach(key=>{
+    const vals=[...new Set(ALL.map(r=>(r[key]||"").toString().trim()).filter(Boolean))].sort();
+    if(!vals.length)return;
+    const labelMap={
+      PERFORMANS_DURUMU:"Performans Durumu",DAIRE:"İşten Sorumlu Daire",
+      HARCAMA_YUZDESI:"Harcama %",YAPIM_SEKLI:"Yapım Şekli",BOLGE_NO:"Bölge No",
+      BOLGESEL_DURUM:"Bölgesel Durum",CSBB_UST:"ÇSBB Seviye Üst",
+      HAVZA:"Havza",IL:"İl"
+    };
+    const html=`<div class="filter-item"><label>${labelMap[key]||key}</label>
+      <select id="f_${key}"><option value="">Tümü</option>${vals.map(v=>`<option>${v}</option>`).join("")}</select></div>`;
+    box.insertAdjacentHTML("beforeend",html);
+  });
+}
+
+function applyFilters(){
+  const get=id=>document.getElementById("f_"+id)?.value||"";
+  const q=document.getElementById("q").value.toLowerCase().trim();
+  VIEW=ALL.filter(r=>{
+    return (!get("PERFORMANS_DURUMU")||r.PERFORMANS_DURUMU===get("PERFORMANS_DURUMU")) &&
+           (!get("DAIRE")||r.DAIRE===get("DAIRE")) &&
+           (!get("HARCAMA_YUZDESI")||r.HARCAMA_YUZDESI===get("HARCAMA_YUZDESI")) &&
+           (!get("YAPIM_SEKLI")||r.YAPIM_SEKLI===get("YAPIM_SEKLI")) &&
+           (!get("BOLGE_NO")||r.BOLGE_NO===get("BOLGE_NO")) &&
+           (!get("BOLGESEL_DURUM")||r.BOLGESEL_DURUM===get("BOLGESEL_DURUM")) &&
+           (!get("CSBB_UST")||r.CSBB_UST===get("CSBB_UST")) &&
+           (!get("HAVZA")||r.HAVZA===get("HAVZA")) &&
+           (!get("IL")||r.IL===get("IL"));
+  });
+  if(q){VIEW=VIEW.filter(r=>Object.values(r).some(v=>(v||"").toString().toLowerCase().includes(q)));}
+  renderKPIs(VIEW);
+  renderList();
+}
+
+document.getElementById("filterBtn").onclick=()=>document.getElementById("filterPanel").classList.toggle("hidden");
+document.getElementById("applyFilters").onclick=()=>{document.getElementById("filterPanel").classList.add("hidden");applyFilters();};
+document.getElementById("clearFilters").onclick=()=>{document.querySelectorAll("#filterContainer select").forEach(s=>s.value="");applyFilters();};
+document.getElementById("q").oninput=applyFilters;
+
+async function load(){
+  const csv=await fetch(SHEET_URL).then(r=>r.text());
+  const parsed=Papa.parse(csv,{header:true,skipEmptyLines:true});
+  const raw=parsed.data||[];
+  ALL=raw.map(canonizeRow);
+  VIEW=[...ALL];
+  buildFiltersUI();
+  renderKPIs(VIEW);
+  renderList();
+}
+load();
+</script>
+</body>
+</html>
