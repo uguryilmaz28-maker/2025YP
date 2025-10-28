@@ -104,6 +104,22 @@ h1 {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
+.card h3 {
+    margin-top: 0;
+    font-size: 1.1em;
+    color: #0c7343;
+}
+
+.card-contractor {
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 8px;
+    /* Uzun Yüklenici adlarının taşmasını engellemek için */
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .map-wrap {
     padding: 15px;
     background-color: white;
