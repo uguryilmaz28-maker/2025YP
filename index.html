@@ -77,8 +77,8 @@ function normalizeHeader(h){
   let s=String(h).split("").map(ch=>map[ch]||ch).join("").toUpperCase().trim();
 
   // --- ESAS DÜZELTME: FAALIYET başlığı (diakriksiz)
-  // FAALIYET ADI / FAALIYET / IS ADI / ISIN ADI / PROJE ADI gibi varyasyonları yakala
-  if (/^(FAALIYET(\s*ADI)?|IS(\s*|IN\s*)ADI|PROJE(\s*ADI)?)$/.test(s) || /FAALIYET\s*ADI/.test(s)) return "TITLE";
+  // FAALIYET ADI / FAALIYET / IS ADI / ISIN ADI / gibi varyasyonları yakala
+  if (/FAAL[Iİ]YET(\s*ADI)?/.test(s) || /IS(IN)?\s*ADI/.test(s) || /PROJE(\s*ADI)?/.test(s)) return "TITLE";
 
   if(/IL( |$)|IL ADI|ILI|YERI/.test(s)) return "IL";
   if(/HAVZA/.test(s)) return "HAVZA";
