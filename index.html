@@ -13,7 +13,7 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()))
-    .finally(() => navigator.serviceWorker.register('service-worker.js?v=2025-10-28-05').catch(()=>{}));
+    .finally(() => navigator.serviceWorker.register('service-worker.js?v=2025-10-28-06').catch(()=>{}));
   });
 }
 </script>
@@ -23,7 +23,7 @@ if ('serviceWorker' in navigator) {
 <header>
   <h1>💧 DSİ 2025 Yatırım Programı</h1>
   <div class="header-actions">
-        <button id="filterBtn" class="btn">Filtrele ⚙️</button>
+    <button id="filterBtn" class="btn">Filtrele ⚙️</button>
   </div>
 </header>
 
@@ -90,8 +90,8 @@ function normalizeHeader(h){
   if(/2025 PERFORMANS HEDEFI/.test(s)) return "HEDEF_2025";
   if(/SULAMA.*HA/.test(s)) return "SULAMA_HA";
   if(/BAKIYE/.test(s)) return "BAKIYE";
-  if(/FAALİYET ADI|FAALİYET/.test(s)) return "TITLE"; // Güncellenen Faaliyet Adı kuralı korundu
-  if(/YUKLENICI|MUTEAHHIT/.test(s)) return "YUKLENICI_BILGISI"; // Yüklenici bilgisi korundu
+  if(/FAALİYET ADI|FAALİYET/.test(s)) return "TITLE"; 
+  if(/YUKLENICI|MUTEAHHIT/.test(s)) return "YUKLENICI_BILGISI"; 
   return s.replace(/[^A-Z0-9]+/g,"_");
 }
 
@@ -165,7 +165,7 @@ function applyFilters(){
   renderAll();
 }
 
-function renderAll(){ renderKPIs(VIEW); renderList(VIEW); /* updateMap kaldırıldı */ }
+function renderAll(){ renderKPIs(VIEW); renderList(VIEW); }
 
 function renderKPIs(rows){
   const sum=k=>rows.reduce((a,r)=>a+cleanNumber(r[k]),0);
@@ -197,12 +197,9 @@ function renderList(rows){
   });
 }
 
-// Harita ile ilgili fonksiyonlar (initMap, setupMapInteraction, updateMap) kaldırıldı
-
 document.getElementById("filterBtn").onclick=()=>document.getElementById("filterPanel").classList.toggle("hidden");
 document.getElementById("applyFilters").onclick=()=>{document.getElementById("filterPanel").classList.add("hidden");applyFilters();};
 document.getElementById("clearFilters").onclick=()=>{document.querySelectorAll("#filterContainer select").forEach(s=>s.value="");document.getElementById("q").value="";applyFilters();};
-// toggleMap ve metric.onchange kaldırıldı
 document.getElementById("q").oninput=()=>applyFilters();
 document.getElementById("rowsPerPage").onchange=e=>{PAGE_SIZE=parseInt(e.target.value)||100;renderList(VIEW);};
 load();
