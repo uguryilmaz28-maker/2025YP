@@ -7,16 +7,13 @@
 <link rel="stylesheet" href="style.css"/>
 <link rel="manifest" href="manifest.json"/>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()))
-    .finally(() => navigator.serviceWorker.register('service-worker.js?v=2025-10-28-04').catch(()=>{}));
+    .finally(() => navigator.serviceWorker.register('service-worker.js?v=2025-10-28-05').catch(()=>{}));
   });
 }
 </script>
@@ -26,16 +23,7 @@ if ('serviceWorker' in navigator) {
 <header>
   <h1>💧 DSİ 2025 Yatırım Programı</h1>
   <div class="header-actions">
-    <div class="metric">
-      <label for="metric">Harita Metrik:</label>
-      <select id="metric">
-        <option value="REVIZE_ODENEK">Revize Ödenek</option>
-        <option value="TOPLAM_HARCAMA">Toplam Harcama</option>
-        <option value="TOPLAM_MALIYET">Toplam Maliyet</option>
-      </select>
-    </div>
-    <button id="toggleMap" class="btn-secondary">🗺️ Harita</button>
-    <button id="filterBtn" class="btn">Filtrele ⚙️</button>
+        <button id="filterBtn" class="btn">Filtrele ⚙️</button>
   </div>
 </header>
 
@@ -62,11 +50,6 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
-<section id="mapWrap" class="map-wrap hidden">
-  <div id="map" class="map"></div>
-  <div class="map-legend" id="mapLegend"></div>
-</section>
-
 <main id="list" class="grid"></main>
 <div id="pagination" class="pagination"></div>
 
@@ -85,7 +68,7 @@ const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tq
 const FILTER_KEYS = ["PERFORMANS_DURUMU","DAIRE","HARCAMA_YUZDESI","YAPIM_SEKLI","BOLGE_NO","BOLGESEL_DURUM","CSBB_UST","HAVZA","IL"];
 const KPI_KEYS = { MALIYET:"TOPLAM_MALIYET",HARCAMA:"TOPLAM_HARCAMA",REVIZE:"REVIZE_ODENEK",YIL_HARCAMA:"HARCAMA_2025",HEDEF:"HEDEF_2025",SULAMA:"SULAMA_HA",BAKIYE:"BAKIYE" };
 const BAKIYE_MODE = "total";
-let ALL=[],VIEW=[],PAGE=1,PAGE_SIZE=100,map,trLayer;
+let ALL=[],VIEW=[],PAGE=1,PAGE_SIZE=100;
 
 function normalizeHeader(h){
   if(!h) return "";
@@ -107,10 +90,8 @@ function normalizeHeader(h){
   if(/2025 PERFORMANS HEDEFI/.test(s)) return "HEDEF_2025";
   if(/SULAMA.*HA/.test(s)) return "SULAMA_HA";
   if(/BAKIYE/.test(s)) return "BAKIYE";
-// FAALİYET ADI KURALI GÜNCELLENDİ
-  if(/FAALİYET ADI|FAALİYET/.test(s)) return "TITLE";
-// YÜKLENİCİ BİLGİSİ
-  if(/YUKLENICI|MUTEAHHIT/.test(s)) return "YUKLENICI_BILGISI";
+  if(/FAALİYET ADI|FAALİYET/.test(s)) return "TITLE"; // Güncellenen Faaliyet Adı kuralı korundu
+  if(/YUKLENICI|MUTEAHHIT/.test(s)) return "YUKLENICI_BILGISI"; // Yüklenici bilgisi korundu
   return s.replace(/[^A-Z0-9]+/g,"_");
 }
 
@@ -184,7 +165,7 @@ function applyFilters(){
   renderAll();
 }
 
-function renderAll(){ renderKPIs(VIEW); renderList(VIEW); updateMap(VIEW); }
+function renderAll(){ renderKPIs(VIEW); renderList(VIEW); /* updateMap kaldırıldı */ }
 
 function renderKPIs(rows){
   const sum=k=>rows.reduce((a,r)=>a+cleanNumber(r[k]),0);
@@ -216,49 +197,12 @@ function renderList(rows){
   });
 }
 
-function initMap(){
-  if(map) return;
-  map=L.map('map').setView([38.5,31.5],6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:8}).addTo(map);
-  fetch('https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr_with_cyprus.geojson')
-  .then(r=>r.json()).then(geo=>{
-    trLayer=L.geoJSON(geo,{style:{color:"#888",weight:1,fillOpacity:0.6}}).addTo(map);
-    setupMapInteraction(); updateMap(VIEW);
-  });
-}
-
-function setupMapInteraction(){
-  if(!trLayer) return;
-  trLayer.eachLayer(layer=>{
-    layer.on('click',()=>{
-      const il=(layer.feature.properties.name||"").toUpperCase();
-      const sel=document.getElementById("f_IL");
-      if(sel){ sel.value=il; applyFilters(); }
-      document.getElementById("mapLegend").innerHTML=`<b>${il}</b> ili seçildi.`;
-    });
-  });
-}
-
-function updateMap(rows){
-  if(!trLayer) return;
-  const metric=document.getElementById("metric").value||"REVIZE_ODENEK";
-  const agg={}; rows.forEach(r=>{const il=(r.IL||"").toUpperCase(); const v=cleanNumber(r[metric]); if(!il)return; agg[il]=(agg[il]||0)+v;});
-  const vals=Object.values(agg); const max=vals.length?Math.max(...vals):1;
-  trLayer.eachLayer(l=>{
-    const n=(l.feature.properties.name||"").toUpperCase();
-    if(n.includes("KIBRIS")){ l.setStyle({fillColor:"#ccc",color:"#666",fillOpacity:0.5}); return; }
-    const v=agg[n]||0; const ratio=Math.sqrt(v/max);
-    const color=v===0?"#eee":`rgba(12,115,67,${0.2+0.6*ratio})`;
-    l.setStyle({fillColor:color});
-    l.bindTooltip(`${l.feature.properties.name}: ${fmt(v)} (${metric})`,{sticky:true});
-  });
-}
+// Harita ile ilgili fonksiyonlar (initMap, setupMapInteraction, updateMap) kaldırıldı
 
 document.getElementById("filterBtn").onclick=()=>document.getElementById("filterPanel").classList.toggle("hidden");
 document.getElementById("applyFilters").onclick=()=>{document.getElementById("filterPanel").classList.add("hidden");applyFilters();};
 document.getElementById("clearFilters").onclick=()=>{document.querySelectorAll("#filterContainer select").forEach(s=>s.value="");document.getElementById("q").value="";applyFilters();};
-document.getElementById("toggleMap").onclick=()=>{document.getElementById("mapWrap").classList.toggle("hidden");initMap();setTimeout(()=>map&&map.invalidateSize(),200);};
-document.getElementById("metric").onchange=()=>updateMap(VIEW);
+// toggleMap ve metric.onchange kaldırıldı
 document.getElementById("q").oninput=()=>applyFilters();
 document.getElementById("rowsPerPage").onchange=e=>{PAGE_SIZE=parseInt(e.target.value)||100;renderList(VIEW);};
 load();

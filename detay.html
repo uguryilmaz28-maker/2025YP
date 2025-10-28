@@ -9,59 +9,142 @@
 </head>
 <body>
 <header>
-  <button onclick="history.back()" class="btn-secondary">← Geri</button>
-  <h1>Faaliyet Detayı</h1>
-  <button id="btnPdf" class="btn">PDF İndir</button>
+  <button onclick="history.back()" class="btn-secondary">← Geri</button>
+  <h1>Faaliyet Detayı</h1>
+  <button id="btnPdf" class="btn">PDF İndir</button>
 </header>
 
-<main id="detay" class="detay"></main>
+<main class="detay-container">
+    <section id="detay-baslik" class="detay-header">
+    <h2 id="detay-title">Faaliyet Adı Yükleniyor...</h2>
+    <p id="detay-il-daire" class="subtitle">İl: - | Daire: -</p>
+  </section>
+
+    <section class="detay-kpi-panel">
+    <div class="detay-kpi"><div class="t">Toplam Maliyet</div><div class="v" id="d_maliyet">–</div></div>
+    <div class="detay-kpi"><div class="t">Revize Ödenek</div><div class="v" id="d_revize">–</div></div>
+    <div class="detay-kpi"><div class="t">Toplam Harcama</div><div class="v" id="d_harcama">–</div></div>
+    <div class="detay-kpi status"><div class="t">Bakiye</div><div class="v" id="d_bakiye">–</div></div>
+  </section>
+
+    <section class="detay-genel-bilgi">
+    <h3>Genel Bilgiler</h3>
+    <div id="detay-tablo" class="detay-tablo"></div>
+  </section>
+</main>
 
 <script>
-function cleanNumber(v){ if(!v) return 0;
-  let s=String(v).replace(/[^\d,.\-]/g,"");
-  if(s.includes(",") && (s.split(",")[1]||"").length<=3){ s=s.replace(/\./g,"").replace(",","."); }
-  else { s=s.replace(/\./g,""); }
-  const n=parseFloat(s); return isNaN(n)?0:n;
+// Finansal anahtarlar listesi, PDF kodunda da kullanılıyor.
+const MONEY_KEYS = ["TOPLAM_MALIYET", "REVIZE_ODENEK", "TOPLAM_HARCAMA", "HARCAMA_2025", "HEDEF_2025", "BAKIYE"];
+
+function cleanNumber(v){ 
+  if(!v) return 0;
+  let s=String(v).replace(/[^\d,.\-]/g,"");
+  if(s.includes(",") && (s.split(",")[1]||"").length<=3){ s=s.replace(/\./g,"").replace(",","."); }
+  else { s=s.replace(/\./g,""); }
+  const n=parseFloat(s); return isNaN(n)?0:n;
 }
 const money = v => {
-  const n=cleanNumber(v);
-  return n ? n.toLocaleString("tr-TR") + " TL" : (v || "-");
+  const n=cleanNumber(v);
+  return n ? n.toLocaleString("tr-TR") + " TL" : (v || "-");
 };
+const fmt = v => v || "-"; // Genel formatlama
 
 const row = JSON.parse(localStorage.getItem("dsi_selected_row")||"{}");
-const div = document.getElementById("detay");
+
+// Anahtar başlıklarını daha okunaklı hale getirme fonksiyonu (Opsiyonel)
+const prettyKey = k => {
+  return k.replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace('Csbb Ust', 'ÇSBB Seviye Üst')
+    .replace('Daire', 'İşten Sorumlu Daire')
+    .replace('Il', 'İl')
+    .replace('Harcama Yuzdesi', 'Harcama Gerçekleşme %')
+    .replace('Yuklenici Bilgisi', 'Yüklenici');
+};
 
 if (!Object.keys(row).length) {
-  div.innerHTML = "<p>Veri bulunamadı.</p>";
+  document.querySelector('.detay-container').innerHTML = "<p>Veri bulunamadı.</p>";
 } else {
-  let html = `<table>`;
-  for (const [k,v] of Object.entries(row)) {
-    const isMoney = /maliyet|harcama|ödenek|bedel|bakiye|tutar|keşif/i.test(k);
-    html += `<tr><th>${k}</th><td>${isMoney ? money(v) : (v || "-")}</td></tr>`;
-  }
-  html += `</table>`;
-  div.innerHTML = html;
+  // 1. Başlık ve Özet (Harici Veriler)
+  document.getElementById("detay-title").textContent = row.TITLE || "Faaliyet Detayı";
+  document.getElementById("detay-il-daire").textContent = `İl: ${row.IL || '-'} | Daire: ${row.DAIRE || '-'}`;
+
+  // 2. KPI Alanları
+  document.getElementById('d_maliyet').textContent = money(row.TOPLAM_MALIYET);
+  document.getElementById('d_revize').textContent = money(row.REVIZE_ODENEK);
+  document.getElementById('d_harcama').textContent = money(row.TOPLAM_HARCAMA);
+  
+  const bakiyeVal = cleanNumber(row.BAKIYE) || (cleanNumber(row.REVIZE_ODENEK) - cleanNumber(row.TOPLAM_HARCAMA));
+  document.getElementById('d_bakiye').textContent = money(bakiyeVal);
+  if (bakiyeVal < 0) {
+    document.getElementById('d_bakiye').parentElement.classList.add('negative');
+  }
+
+  // 3. Detay Tablosu
+  let html = `<div class="detay-grid">`;
+  for (const [k,v] of Object.entries(row)) {
+    // KPI'ları zaten gösterdiğimiz için tabloda atlıyoruz
+    if (k === 'TITLE' || k === 'IL' || k === 'DAIRE' || MONEY_KEYS.includes(k)) continue; 
+    
+    const isMoney = /maliyet|harcama|ödenek|bedel|bakiye|tutar|keşif/i.test(k);
+    const value = isMoney ? money(v) : fmt(v);
+    const key = prettyKey(k);
+
+    html += `<div class="detay-item"><span class="detay-label">${key}:</span><span class="detay-value">${value}</span></div>`;
+  }
+  html += `</div>`;
+  document.getElementById("detay-tablo").innerHTML = html;
 }
 
 document.getElementById("btnPdf").onclick = async ()=>{
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:"pt", format:"a4" });
-  let y = 42;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:"pt", format:"a4" });
+  let y = 42;
 
-  doc.setFont("helvetica","bold"); doc.setFontSize(14);
-  doc.text("DSİ 2025 – Faaliyet Detayı", 40, y); y += 24;
-  doc.setFont("helvetica","normal"); doc.setFontSize(10);
+  doc.setFont("helvetica","bold"); doc.setFontSize(16);
+  doc.text(row.TITLE || "DSİ Faaliyet Detayı", 40, y); y += 18;
 
-  for (const [k,v] of Object.entries(row)) {
-    const isMoney = /maliyet|harcama|ödenek|bedel|bakiye|tutar|keşif/i.test(k);
-    const val = isMoney ? money(v) : (v || "-");
-    const text = `${k}: ${val}`;
-    const lines = doc.splitTextToSize(text, 515);
-    if (y + lines.length*14 > 800) { doc.addPage(); y = 42; }
-    doc.text(lines, 40, y);
-    y += lines.length*14 + 6;
-  }
-  doc.save("Faaliyet_Detayi.pdf");
+  doc.setFont("helvetica","normal"); doc.setFontSize(10);
+  doc.text(`İl: ${row.IL || '-'} | Daire: ${row.DAIRE || '-'}`, 40, y); y += 24;
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(12);
+  doc.text("Finansal Özet", 40, y); y += 16;
+  doc.setFont("helvetica","normal"); doc.setFontSize(10);
+  
+  // Finansal Özeti PDF'e ekle
+  const financialSummary = [
+    `Toplam Maliyet: ${money(row.TOPLAM_MALIYET)}`,
+    `Revize Ödenek: ${money(row.REVIZE_ODENEK)}`,
+    `Toplam Harcama: ${money(row.TOPLAM_HARCAMA)}`,
+    `Bakiye: ${money(cleanNumber(row.BAKIYE) || (cleanNumber(row.REVIZE_ODENEK) - cleanNumber(row.TOPLAM_HARCAMA)))}`
+  ];
+  doc.text(financialSummary, 40, y); y += financialSummary.length * 14 + 10;
+  
+  doc.setFont("helvetica","bold"); doc.setFontSize(12);
+  doc.text("Detaylı Bilgiler", 40, y); y += 16;
+  doc.setFont("helvetica","normal"); doc.setFontSize(10);
+
+  for (const [k,v] of Object.entries(row)) {
+    // Başlık ve KPI verilerini atla
+    if (k === 'TITLE' || k === 'IL' || k === 'DAIRE' || MONEY_KEYS.includes(k)) continue; 
+
+    const isMoney = /maliyet|harcama|ödenek|bedel|bakiye|tutar|keşif/i.test(k);
+    const val = isMoney ? money(v) : fmt(v);
+    const key = prettyKey(k);
+    
+    const text = `${key}: ${val}`;
+    const lines = doc.splitTextToSize(text, 515);
+    
+    // Sayfa Sonu Kontrolü
+    if (y + lines.length*14 > 780) { 
+      doc.addPage(); y = 42; 
+    }
+    
+    doc.text(lines, 40, y);
+    y += lines.length*14 + 6;
+  }
+  doc.save("Faaliyet_Detayi.pdf");
 };
 </script>
 </body>
