@@ -89,7 +89,7 @@ function normalizeHeader(h){
   s = s.split("").map(ch=>map[ch]||ch).join("").toUpperCase();
 
   // 🔒 FAALİYET ADI — noktalı/noktasıza dayanıklı:
-  if (/FAAL[Iİ]YET(\s*ADI)?/.test(s) || /IS(IN)?\s*ADI/.test(s) || /PROJE(\s*ADI)?/.test(s)) return "TITLE";
+  if (/FAAL[Iİ]YET(\s*ADI)?/.test(s) || /IS(IN)?\s*ADI/.test(s) || /İŞ(\s*İN)?(\s*ADI)?/.test(s) || /PROJE(\s*ADI)?/.test(s)) return "TITLE";
 
   if (/IL( |$)|IL ADI|ILI|YERI/.test(s)) return "IL";
   if (/HAVZA/.test(s)) return "HAVZA";
