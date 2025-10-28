@@ -107,8 +107,9 @@ function normalizeHeader(h){
   if(/2025 PERFORMANS HEDEFI/.test(s)) return "HEDEF_2025";
   if(/SULAMA.*HA/.test(s)) return "SULAMA_HA";
   if(/BAKIYE/.test(s)) return "BAKIYE";
-  if(/FAAL.*ADI/.test(s)) return "TITLE";
-// YÜKLENİCİ BİLGİSİ EKLENDİ
+// FAALİYET ADI KURALI GÜNCELLENDİ
+  if(/FAALİYET ADI|FAALİYET/.test(s)) return "TITLE";
+// YÜKLENİCİ BİLGİSİ
   if(/YUKLENICI|MUTEAHHIT/.test(s)) return "YUKLENICI_BILGISI";
   return s.replace(/[^A-Z0-9]+/g,"_");
 }
@@ -204,7 +205,6 @@ function renderList(rows){
   const start=(PAGE-1)*PAGE_SIZE; const pageRows=rows.slice(start,start+PAGE_SIZE);
   pageRows.forEach(r=>{
     const c=document.createElement("div"); c.className="card";
-    // Yüklenici Bilgisi Eklendi
     const yuklenici = r.YUKLENICI_BILGISI || "-";
     
     c.innerHTML=`<h3>${r.TITLE||"-"}</h3>
