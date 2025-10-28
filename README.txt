@@ -1,0 +1,1 @@
+DSİ 2025 – Masaüstü sürüm. index.html'yi çift tıklayın. SHEET_ID index içinde.
